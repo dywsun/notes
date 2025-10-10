@@ -1,6 +1,7 @@
 #!/bin/bash
 
-file='notes.md'
+file="notes.md"
+repo_prefix="https://github.com/dywsun/notes/blob/main"
 truncate -s 0 $file
 
 echo "### 日常小记" >> $file
@@ -10,7 +11,8 @@ echo "" >> $file
 for dir in $(ls -rd */); do
   echo "##### $(basename $dir)" >> $file
   for note in $(ls "$dir" | grep '.md$'); do
-    echo "* ${note%.md}" >> $file
+    url="$repo_prefix/$dir$note"
+    echo "* [${note%.md}]($url)" >> $file
   done
   echo "" >> $file
 done
