@@ -31,4 +31,4 @@ md5技术是对任意长度的内容提取128位摘要信息且是唯一的。�
 
 这里要注意的是有可能输入密码的位数与原始密码的位数不一致，
 会导致当时注册时随机到的插入值`insert_pos`要大于输入密码的长度，
-这里简单做下处理即可，insert_pos = min(insert_pos, input_passwd_len)，将其插入到输入密码最后即可。
+这里简单做下处理即可，```insert_pos = min(insert_pos, input_passwd_len)```，将其插入到输入密码最后即可。
