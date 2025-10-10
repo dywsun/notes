@@ -1,6 +1,6 @@
 #!/bin/bash
 
-file="notes.md"
+file="readme.md"
 repo_prefix="https://github.com/dywsun/notes/blob/main"
 truncate -s 0 $file
 
