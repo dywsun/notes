@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+  echo "Usage: $0 <note_file>"
+  exit 1
+fi
+
+file="$1"
+
+cat <<EOF >> "post/${file}.md"
+### title
+- :pushpin: tag: other
+- :calendar: date: $(date +%Y-%m-%d)
+---
+EOF
+
+echo "New note created: $file"
