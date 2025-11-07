@@ -1,76 +1,40 @@
 -- Sodoku solver using Wave Function Collapse algorithm
+local M = {}
 
--- 11x11 contains 9x9 Sodoku puzzle with boundary cells
-local grid = {}
-local entropy_cells = {}
-local records = {}
-
--- 1 - 9
-local function get_ceil_col(index)
-	return (index - 1) % 11
+local function get_cell_col(idx, sq)
+	return (idx - 1) % sq + 1
 end
 
--- 1 - 9
-local function get_ceil_row(index)
-	return math.ceil(index / 11) - 1
+local function get_cell_row(idx, sq)
+	return math.floor((idx - 1) / sq) + 1
 end
 
--- 1 - 121
-local function get_ceil_index(row, col)
-	return row * 11 + col + 1
+local function get_cell_idx(row, col, sq)
+	return (row - 1) * sq + col
 end
 
--- @cell_index: index of the cell in the grid (1-based)
-local function get_sub_grid(cell_index)
-	local row = get_ceil_row(cell_index)
-	local col = get_ceil_col(cell_index)
-	assert(row >= 1 and row <= 10 and col >= 1 and col <= 10, "Invalid cell index:", cell_index)
-	return (math.ceil(row / 3) - 1) * 3 + math.ceil(col / 3)
+local function in_which_sub_grid(cell_idx)
+	local row = get_cell_row(cell_idx, 11) - 1
+	local col = get_cell_col(cell_idx, 11) - 1
+	assert(row >= 1 and row <= 10 and col >= 1 and col <= 10, "Invalid cell index:", cell_idx)
+	return math.ceil(row / 3), math.ceil(col / 3)
 end
 
-local function is_only_value(cell_index, value)
-	local entropy_cell = entropy_cells[cell_index]
-	assert(entropy_cell, "Entropy cell not found:", cell_index)
+local function is_only_value(entropy_cell, value)
 	return #entropy_cell == 1 and entropy_cell[1] == value
 end
 
-local function print_grid_all(t)
-	for i = 1, 11 do
+function M.print_grid(t)
+	local p = {}
+	local sq = math.floor(math.sqrt(#t))
+	for i = 1, sq do
 		local str = ""
-		for j = 1, 11 do
-			str = str .. string.format("%2d", t[(i - 1) * 11 + j])
-			if j ~= 11 then
-				str = str .. " "
-			end
+		for j = 1, sq do
+			str = str .. string.format("%2d", t[get_cell_idx(i, j, sq)])
 		end
-		print(str)
+		table.insert(p, str)
 	end
-end
-
-local function print_grid(t)
-	for i = 1, 9 do
-		local str = ""
-		for j = 1, 9 do
-			str = str .. t[get_ceil_index(i, j)]
-			if j ~= 9 then
-				str = str .. " "
-			end
-		end
-		print(str)
-	end
-end
-
-local function print_sudoku(t)
-	for i = 1, 9 do
-		local str = ""
-		for j = 1, 9 do
-			str = str .. t[(i - 1) * 9 + j]
-			if j ~= 9 then
-				str = str .. " "
-			end
-		end
-		print(str)
-	end
+	print(table.concat(p, "\n"))
 end
 
 local function contains_item(t, item)
@@ -98,56 +62,58 @@ local function remove_item(t, item)
 	return false
 end
 
-local function find_min_entropy_cell()
+local function find_min_entropy_cell(m)
+	local guard_grid = m.guard_grid
+	local entropy_cells = m.entropy_cells
+
 	local min_entropy = 10
-	local ceil_indexs = {}
+	local cell_idxs = {}
 	for i = 1, 121 do
-		if grid[i] == 0 then
+		if guard_grid[i] == 0 then
 			if #entropy_cells[i] < min_entropy then
 				min_entropy = #entropy_cells[i]
-				table.insert(ceil_indexs, i)
+				table.insert(cell_idxs, i)
 			elseif #entropy_cells[i] == min_entropy then
-				table.insert(ceil_indexs, i)
+				table.insert(cell_idxs, i)
 			end
 		end
 	end
-	-- print(table.unpack(cell_indexs))
-	if #ceil_indexs == 0 then
+	if #cell_idxs == 0 then
 		return 0
 	else
-		return ceil_indexs[math.random(1, #ceil_indexs)]
+		return cell_idxs[math.random(1, #cell_idxs)]
 	end
 end
 
-local function get_affected_ceils(idx, value)
-	local ceils = {}
-	local col = get_ceil_col(idx)
-	local row = get_ceil_row(idx)
-	for i = 1, 9 do
-		local row_idx = get_ceil_index(row, i)
+local function get_affected_cells(idx)
+	local cells = {}
+	local col = get_cell_col(idx, 11)
+	local row = get_cell_row(idx, 11)
+	for i = 2, 10 do
+		local row_idx = get_cell_idx(row, i, 11)
 		if row_idx ~= idx then
-			insert_unique_item(ceils, row_idx)
+			insert_unique_item(cells, row_idx)
 		end
-		local col_idx = get_ceil_index(i, col)
+		local col_idx = get_cell_idx(i, col, 11)
 		if col_idx ~= idx then
-			insert_unique_item(ceils, col_idx)
+			insert_unique_item(cells, col_idx)
 		end
 	end
-	local sub_grid_idx = get_sub_grid(idx)
-	local start_row = (math.ceil(sub_grid_idx / 3) - 1) * 3
-	local start_col = ((sub_grid_idx - 1) % 3) * 3
+	local r, c = in_which_sub_grid(idx)
+	local start_row = (r - 1) * 3
+	local start_col = (c - 1) * 3
 	for i = 1, 3 do
 		for j = 1, 3 do
-			local ceil_idx = get_ceil_index(start_row + i, start_col + j)
+			local ceil_idx = get_cell_idx(start_row + i + 1, start_col + j + 1, 11)
 			if ceil_idx ~= idx then
-				insert_unique_item(ceils, ceil_idx)
+				insert_unique_item(cells, ceil_idx)
 			end
 		end
 	end
-	return ceils
+	return cells
 end
 
-local function detect_valid()
+--[[ local function detect_valid()
 	-- sub grids
 	for row = 1, 9 do
 		for col = 1, 9 do
@@ -165,149 +131,166 @@ local function detect_valid()
 			end
 		end
 	end
-end
+end ]]
 -- detect_valid()
 
-local function make_value(ceil_index, entropy_value, remove_ceils)
+local function make_value(m, cell_idx, entropy_value, remove_cells)
+	local records = m.records
+	local guard_grid = m.guard_grid
+	local entropy_cells = m.entropy_cells
 	local record = {}
-	record.ceil = ceil_index
+	record.cell = cell_idx
 	record.value = entropy_value
-	record.entropys = entropy_cells[ceil_index]
-	record.remove_ceils = remove_ceils
+	record.entropys = entropy_cells[cell_idx]
+	record.remove_cells = remove_cells
 	table.insert(records, record)
 
-	grid[ceil_index] = entropy_value
-	entropy_cells[ceil_index] = {}
+	guard_grid[cell_idx] = entropy_value
+	entropy_cells[cell_idx] = {}
 end
 
-local function undo_make()
+local function undo_make(m)
+	local guard_grid = m.guard_grid
+	local entropy_cells = m.entropy_cells
+	local records = m.records
 	local last_record = table.remove(records)
-	local ceil_index = last_record.ceil
+	local cell_idx = last_record.cell
 	local value = last_record.value
 	local entropys = last_record.entropys
 
-	grid[ceil_index] = 0
-	entropy_cells[ceil_index] = entropys
+	guard_grid[cell_idx] = 0
+	entropy_cells[cell_idx] = entropys
 
-	for _, ceil in ipairs(last_record.remove_ceils) do
-		table.insert(entropy_cells[ceil], value)
+	for _, cell in ipairs(last_record.remove_cells) do
+		table.insert(entropy_cells[cell], value)
 	end
 end
 
-local function do_solve()
-	local ceil_index = find_min_entropy_cell()
-	if ceil_index == 0 then
+local function do_solve(m)
+	local guard_grid = m.guard_grid
+	local entropy_cells = m.entropy_cells
+
+	local cell_idx = find_min_entropy_cell(m)
+	if cell_idx == 0 then
 		return true
 	end
 
-	assert(grid[ceil_index] == 0, "Invalid cell index:", ceil_index)
+	assert(guard_grid[cell_idx] == 0, "Invalid cell index:", cell_idx)
 
 	local vaild_move = false
-	local entropy = entropy_cells[ceil_index]
+	local entropy = entropy_cells[cell_idx]
 	for _, entropy_value in ipairs(entropy) do
-		local affected_ceils = get_affected_ceils(ceil_index, entropy_value)
-		-- print(table.unpack(affected_ceils))
-		for _, affected_ceil in ipairs(affected_ceils) do
-			if is_only_value(affected_ceil, entropy_value) then
+		local affected_cells = get_affected_cells(cell_idx)
+		-- print(table.unpack(affected_cells))
+		for _, affected_cell in ipairs(affected_cells) do
+			if is_only_value(entropy_cells[affected_cell], entropy_value) then
 				goto continue_loop
 			end
 		end
 
-		local remove_ceils = {}
-		for _, affected_ceil in ipairs(affected_ceils) do
-			if remove_item(entropy_cells[affected_ceil], entropy_value) then
-				table.insert(remove_ceils, affected_ceil)
+		local remove_cells = {}
+		for _, affected_cell in ipairs(affected_cells) do
+			if remove_item(entropy_cells[affected_cell], entropy_value) then
+				table.insert(remove_cells, affected_cell)
 			end
 		end
-		make_value(ceil_index, entropy_value, remove_ceils)
-		if do_solve() then
+		make_value(m, cell_idx, entropy_value, remove_cells)
+		if do_solve(m) then
 			vaild_move = true
 			break
 		end
-		undo_make()
+		undo_make(m)
 
 		::continue_loop::
 	end
 	return vaild_move
 end
 
-local function init_grid(input_grid)
-	for i = 1, 121 do
-		local row = math.floor((i - 1) / 11)
-		local col = (i - 1) % 11
-		if row == 0 or row == 10 or col == 0 or col == 10 then
-			grid[i] = -1
-		else
-			entropy_cells[i] = {}
-			local r = get_ceil_row(i)
-			local c = get_ceil_col(i)
-			local idx = (r - 1) * 9 + c
-			if input_grid[idx] == nil or input_grid[idx] == 0 then
-				grid[i] = 0
-				for e = 1, 9 do
-					table.insert(entropy_cells[i], e)
-				end
+local function init_guard_grid(input_grid)
+	local m = {}
+	local guard_grid = {}
+	local entropy_cells = {}
+	m.guard_grid = guard_grid
+	m.entropy_cells = entropy_cells
+	m.records = {}
+
+	local sq = 9 + 2
+	for i = 1, sq do
+		for j = 1, sq do
+			local idx = get_cell_idx(i, j, sq)
+			if i == 1 or i == sq or j == 1 or j == sq then
+				guard_grid[idx] = -1
 			else
-				grid[i] = input_grid[idx]
+				entropy_cells[idx] = {}
+				local ii = get_cell_idx(i - 1, j - 1, 9)
+				local value = input_grid[ii]
+				if value == nil or value == 0 then
+					guard_grid[idx] = 0
+					for e = 1, 9 do
+						table.insert(entropy_cells[idx], e)
+					end
+				else
+					guard_grid[idx] = value
+				end
 			end
 		end
 	end
 
 	-- remove entropy values
-	for i = 1, 9 do
-		for j = 1, 9 do
-			local ceil_idx = get_ceil_index(i, j)
-			if grid[ceil_idx] > 0 then
-				local entropy_value = grid[ceil_idx]
-				local affected_ceils = get_affected_ceils(ceil_idx, grid[ceil_idx])
-				for _, affected_ceil in ipairs(affected_ceils) do
-					if grid[affected_ceil] == 0 then
-						if is_only_value(affected_ceil, entropy_value) then
-							return false
+	for i = 2, 10 do
+		for j = 2, 10 do
+			local ci = get_cell_idx(i, j, 11)
+			if guard_grid[ci] > 0 then
+				local entropy_value = guard_grid[ci]
+				local affected_cells = get_affected_cells(ci)
+				for _, affected_cell in ipairs(affected_cells) do
+					if guard_grid[affected_cell] == 0 then
+						if is_only_value(entropy_cells[affected_cell], entropy_value) then
+							return nil
 						end
-						remove_item(entropy_cells[affected_ceil], entropy_value)
+						remove_item(entropy_cells[affected_cell], entropy_value)
 					end
 				end
 			end
 		end
 	end
 
-	return true
+	return m
 end
 
-local function sodoku_solver(s_grid)
+function M.solve(s_grid)
 	-- Initialize the grid with empty values
-	grid = {}
-	entropy_cells = {}
-	records = {}
-
 	local input_grid = s_grid or {}
-	if not init_grid(input_grid) then
+	local m = init_guard_grid(input_grid)
+	if not m then
 		print("Invalid input grid.")
 		return {}
 	end
 
-	while not do_solve() do
+	while not do_solve(m) do
 	end
 
 	local output_grid = {}
-	for i = 1, 121 do
-		local row = math.floor((i - 1) / 11)
-		local col = (i - 1) % 11
-		if row == 0 or row == 10 or col == 0 or col == 10 then
-		else
-			table.insert(output_grid, grid[i])
+	for i = 2, 10 do
+		for j = 2, 10 do
+			local idx = get_cell_idx(i, j, 11)
+			table.insert(output_grid, m.guard_grid[idx])
 		end
 	end
-
 	return output_grid
 end
 
-local function generate_sudoku()
-	local answer = sodoku_solver()
+function M.generate(diff)
+	diff = diff or 0.6
+	if diff < 0.01 or diff > 0.99 then
+		print("Invalid difficulty.")
+		return nil, nil
+	end
+
+	local answer = M.solve()
 	local output = {}
-	for i = 1, 121 do
-		if math.random() < 0.7 then
+	for i = 1, 81 do
+		if math.random() < diff then
 			output[i] = 0
 		else
 			output[i] = answer[i]
@@ -316,13 +299,4 @@ local function generate_sudoku()
 	return output, answer
 end
 
-local level, answer = generate_sudoku()
-
-print("generate new sudoku:")
-print_sudoku(level)
-print("generate new sudoku's answer:")
-print_sudoku(answer)
-
-print("solve the sudoku:")
-local solution = sodoku_solver(level)
-print_sudoku(solution)
+return M
